@@ -1,22 +1,12 @@
-import sys, os, pickle
+import pickle
 from itertools import product, combinations
-
-# Add parent dir to path to make oinfo package visible
-current_dir = os.getcwd()
-parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
-sys.path.insert(0, parent_dir)  
 
 import numpy as np
 rng = np.random.default_rng()
 
-import matplotlib.pyplot as plt
-
 import networkx as nx
 # import hypergraphx as hgx
 # from hypergraphx.generation import random_hypergraph
-
-# Now you can import the package
-import oinfo.oinfo as oinfo
 
 # TODO: maybe split this file into two files, for dynamics / gen and for information measures ?
 
