@@ -99,8 +99,11 @@ def cmi(y, xs, y0=None) :
 
 def cmi_from_pjoint(p_yxsy0, n) :
     """
-    Conditional mutual information between variables, assuming target is in index 0,
-    target history at last m indeces, and sources in rest.
+    Conditional mutual information between a single target and a set of source variables.
+    Assumes that:
+        - dim 0 of dist corresponds to target (y);
+        - dims 1 to ndim-m correspond to sources (xs); and
+        - last m dims correspond to target history (y0).
     """
     nbins = p_yxsy0.shape[0]     # To make more general (applicable to any hist distribution)
     mi = 0
@@ -111,6 +114,8 @@ def cmi_from_pjoint(p_yxsy0, n) :
             (p_joint * p_cond_terms) / 
             (np.stack([np.sum(p_joint, axis=i)]*nbins, axis=i) * np.stack([np.sum(p_joint, axis=0)]*nbins, axis=0))
         ))
+
+    # TODO: Could this funciton be made more efficient by calculating via entropy?
 
     return mi
 
@@ -138,10 +143,21 @@ def dO(target, source, m=1, return_cmi=False, sample_period=1) :
     yxsy0 = yxsy0[::sample_period]  # Subsample
     p_yxsy0 = get_p_joint(yxsy0)
 
+    return dO_from_pjoint(p_yxsy0, m=m, return_cmi=return_cmi)
+
+def dO_from_pjoint(p_joint, m=1, return_cmi=False) :
+    """
+    Assumes that:
+        - dim 0 of p_joint corresponds to target;
+        - dims 1 to ndim-m correspond to sources; and
+        - last m dims correspond to target history.
+    """
+    n = p_joint.ndim-1-m    # Number of sources
+
     # mi_yxn = cmi(y, xn, y0)
-    mi_yxn = cmi_from_pjoint(p_yxsy0, n)
+    mi_yxn = cmi_from_pjoint(p_joint, n)
     assert mi_yxn >= 0, f"Incorrect group MI {mi_yxn} < 0"
-    mi_yxj = [cmi_from_pjoint(np.sum(p_yxsy0, axis=j+1), n-1) for j in range(n)]
+    mi_yxj = [cmi_from_pjoint(np.sum(p_joint, axis=j+1), n-1) for j in range(n)]
     assert np.all(np.array(mi_yxj) >= 0), f"Incorrect source indep. MI {mi_yxj} < 0"
 
     dOn = (1-n)*mi_yxn + np.sum(mi_yxj)
