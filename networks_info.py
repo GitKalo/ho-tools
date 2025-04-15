@@ -5,8 +5,6 @@ import numpy as np
 rng = np.random.default_rng()
 
 import networkx as nx
-# import hypergraphx as hgx
-# from hypergraphx.generation import random_hypergraph
 
 # TODO: maybe split this file into two files, for dynamics / gen and for information measures ?
 
@@ -74,13 +72,18 @@ def run_sis_sync_nx(G, beta, mu=1, t_max=100, init=0.1, hois_dict=None, beta_tri
 
     return res
 
-def run_sis_sync_hgx(hg, betas, mu=1, t_max=100, init=0.1, rng=np.random.default_rng()) :
+def run_sis_sync_hgx(hg, betas, mu=1, t_max=100, init=0.1, rng=None) :
     """
     Discrete-time, synchronous update, probability-based SIS on HO networks with `hypergraphx` package.
 
     hg is a hypergraphx.Hypergraph object
     betas is a dictionary of beta values, with keys being the hyperedge **sizes**
     """
+    # If no rng provided, create a fresh one.
+    # Useful for working with multiple processes when this is the only 
+    # function using random numbers.
+    if rng is None :
+        rng = np.random.default_rng()
 
     # Prevent beta > 1 (as it affects p_inf below, but could occur by accident)
     betas = {size : min(1, beta) for size, beta in betas.items()}
@@ -187,61 +190,6 @@ def run_sis_async(G, beta, mu=1, t_max=1000, init=0.1) :
 
     return res
 
-def get_inf_from_res(res, N) :
-    """
-    Get 2d array of node states from list of lists of infected nodes.
-    """
-    ts, infs = list(zip(*res))
-    inf_track = np.zeros((len(res), N), dtype='int8')
-    for i, inf in enumerate(infs) :
-        inf_track[i,inf] = 1
-    return ts, inf_track
-
-def get_p_joint_from_res(res, nodes, lag=0) :
-    """
-    Get joint state distribution for nodes in `nodes` list.
-    
-    Places first node index as state in axis 0 of distribution, and fills other 
-    axes based on samples from state of other nodes at a time lag of `lag`. 
-    A lag of 0 (default) corresponds to same-time samples.
-    """
-    p = np.zeros((2,)*len(nodes))
-    for i_res, (t, infs) in enumerate(res[lag:]) :    # Start from lag-th time step
-        s = [int(nodes[0] in infs)]     # State of target node
-        s += [int(n in res[i_res][1]) for n in nodes[1:]]   # State of neighbours lag steps before
-        p[tuple(s)] += 1
-    p = p / np.sum(p)
-    return p
-
-def get_p_joint_from_inftrack(ts, inf_track, nodes, lag=0) :
-    """
-    Get joint state distribution for nodes in `nodes` list.
-    
-    Places first node index as state in axis 0 of distribution, and fills other 
-    axes based on samples from state of other nodes at a time lag of `lag`. 
-    A lag of 0 (default) corresponds to same-time samples.
-
-    Compared to `get_p_joint_from_res`, is generally faster (once state matrix is computed)
-    but since it relies on the inf_track matrix it has a higher memory footprint.
-    This scales with number of nodes and samples, and thus should be used with
-    care for larger networks (inf_track generally already ~2MB for 200 nodes).
-    """
-    p = np.zeros((2,)*len(nodes))
-    nodes = list(nodes)
-    for t in ts :
-        s = [inf_track[t,nodes[0]]]             # State of target node
-        s += inf_track[t-lag,nodes[1:]].tolist()    # State of neighbours lag steps before
-        p[tuple(s)] += 1
-    p = p / np.sum(p)
-    return p
-
-def save_simple(name, inf_track, G) :
-    """
-    Old function used for saving results and network.
-    """
-    np.savetxt(f'sis_{name}.txt', inf_track)
-    nx.write_adjlist(G, f'sis_{name}_adj.txt')
-
 #####################################
 # Network generation and manipulation
 #####################################
@@ -345,11 +293,6 @@ def simp_dict_from_list(simp_list, N) :
             simp_dict[n].append(set(simp))
     return simp_dict
 
-def get_pmf(data, edges) :
-    vals, _ = np.histogram(data, bins=edges)
-    pmf = vals / np.size(data)
-    return pmf
-
 def cliques_of_node_nx(G, n, minsize=None, maxsize=None) :
     """
     Get all cliques of given sizes that node n participates in.
@@ -393,6 +336,36 @@ def make_hypergraph_simplicial(hg) :
             for sub_size in range(2, size) :
                 hg.add_edges(combinations(e, sub_size))
 
+def random_simplicial_complex(N, ks_mean) :
+    """
+    Generate a random simplicial complex with given size and (approximate) average degrees.
+    Works for maximum order 2.
+
+    Algorithm is as described in Robiglio et al. (2025), producing essentially
+    the same graph as Iacopini et al. (2019), as implemented in the `simplagion` 
+    package and `get_rsc` function.
+    """
+    # Funciton-specific imports
+    from math import factorial, prod
+    from hypergraphx.generation import random_hypergraph
+
+    # Construct connection probabilities for obtaining a simplicial complex
+    # with the desired average degrees
+    ps = {}
+    ps[2] = (ks_mean[2] - 2*ks_mean[3]) / (N-1 - 2*ks_mean[3])
+    ps[3] = 2*ks_mean[3] / ((N-1)*(N-2))
+
+    # Obtian the number of edges from the connection probabilties
+    ms = {s : p*prod([N-i for i in range(0,s)])/factorial(s) for s, p in ps.items()}
+
+    # Create a random hypergraph using hgx function
+    hg = random_hypergraph(N, ms)
+    
+    # Fill in lower order hyperedges to make it simplicial (in-place)
+    make_hypergraph_simplicial(hg)
+    
+    return hg
+
 ######################
 # Information measures
 ######################
@@ -432,16 +405,3 @@ def run_pis_triplets(beta_factor, output_fname='tri_pis.txt', network_pkl_fname=
         tri_pis[i,3] = pid.get_pi(((0,1),))     # Synergistic
 
     np.savetxt(output_fname, tri_pis)
-
-###################
-# Utility funcitons
-###################
-
-def get_p_joint_np(Xs, bins=8) :
-    """
-    For binary variables. Xs assumed to have samples (e.g. time) in axis 0.
-    """
-    vals, _ = np.histogramdd(Xs, bins=bins)
-    p = vals / np.sum(vals) + 10e-30    # TODO: Reduce error with proper normalization
-    return p
-
