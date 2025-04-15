@@ -126,8 +126,6 @@ def dO_from_pjoint(p_joint, m=1, return_cmi=False) :
         - dims 1 to ndim-m correspond to sources; and
         - last m dims correspond to target history.
     """
-    print(p_joint)
-
     n = p_joint.ndim-1-m    # Number of sources
 
     # mi_yxn = cmi(y, xn, y0)
