@@ -288,11 +288,6 @@ def simp_dict_from_list(simp_list, N) :
             simp_dict[n].append(set(simp))
     return simp_dict
 
-def get_pmf(data, edges) :
-    vals, _ = np.histogram(data, bins=edges)
-    pmf = vals / np.size(data)
-    return pmf
-
 def cliques_of_node_nx(G, n, minsize=None, maxsize=None) :
     """
     Get all cliques of given sizes that node n participates in.

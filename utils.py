@@ -80,16 +80,24 @@ def get_p_joint_from_inftrack(ts, inf_track, nodes, lag=0) :
     p = p / np.sum(p)
     return p
 
+###########################
+# Data processing functions
+###########################
+
+def get_pmf(data, edges) :
+    vals, _ = np.histogram(data, bins=edges)
+    pmf = vals / np.size(data)
+    return pmf
+
 ####################
 # Data I/O functions
 ####################
-
 
 def save_simple(name, inf_track, G) :
     """
     Old function used for saving results and network.
     """
     import networkx as nx
-    
+
     np.savetxt(f'sis_{name}.txt', inf_track)
     nx.write_adjlist(G, f'sis_{name}_adj.txt')
