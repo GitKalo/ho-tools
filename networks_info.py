@@ -275,7 +275,8 @@ def get_tri_clique_hyperedge_hgx(hg, n_triplets=100) :
     # CAREFUL! Will be stuck in infinite loop if # required triplets < # available triplets,
     # which is not impossible for smaller networks and if n_triplets is large
     nodes = range(N)
-    while len(tri_all) - len(cliques_3) - len (hyperedges[3]) < n_triplets :    # While "space" for triplets
+    # Try to add n_triplets random triplets
+    while len(tri_all) - len(cliques_3) - len(hyperedges[3]) < n_triplets :    # While "space" for triplets
         tri = tuple(rng.choice(nodes, 3, replace=False).tolist())
         if tri not in tri_all :
             tri_all.add(tri)
