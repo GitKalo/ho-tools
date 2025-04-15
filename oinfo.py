@@ -1,5 +1,7 @@
 import numpy as np
 
+from utils import get_p_joint, get_p_joint_np
+
 def h(p) :
     """
     Shannon entropy [bits]. Works for multi-dimensional (joint probability distribution) as well.
