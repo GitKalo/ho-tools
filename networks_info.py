@@ -72,13 +72,18 @@ def run_sis_sync_nx(G, beta, mu=1, t_max=100, init=0.1, hois_dict=None, beta_tri
 
     return res
 
-def run_sis_sync_hgx(hg, betas, mu=1, t_max=100, init=0.1, rng=np.random.default_rng()) :
+def run_sis_sync_hgx(hg, betas, mu=1, t_max=100, init=0.1, rng=None) :
     """
     Discrete-time, synchronous update, probability-based SIS on HO networks with `hypergraphx` package.
 
     hg is a hypergraphx.Hypergraph object
     betas is a dictionary of beta values, with keys being the hyperedge **sizes**
     """
+    # If no rng provided, create a fresh one.
+    # Useful for working with multiple processes when this is the only 
+    # function using random numbers.
+    if rng is None :
+        rng = np.random.default_rng()
 
     # Prevent beta > 1 (as it affects p_inf below, but could occur by accident)
     betas = {size : min(1, beta) for size, beta in betas.items()}
