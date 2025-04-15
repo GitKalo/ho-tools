@@ -44,34 +44,6 @@ def O_info(p_joint) :
 
     return O
 
-def get_p_joint(Xs) :
-    """
-    For binary variables. Xs assumed to have time in axis 0.
-    """
-    # Calculate joint probability distribution
-    p_joint = np.zeros(tuple([2] * Xs.shape[1]))
-    for s in Xs :
-        # print(s)
-        p_joint[tuple(s)] += 1
-    p_joint = p_joint / np.sum(p_joint) + 10e-30
-    # p_joint = p_joint / np.sum(p_joint)
-    
-    return p_joint
-
-def get_p_joint_np(Xs, bins=8) :
-    """
-    For binary variables. Xs assumed to have time in axis 0.
-    """
-    vals, _ = np.histogramdd(Xs, bins=bins)
-    p = vals / np.sum(vals) + 10e-30
-    return p
-
-def get_p_joint_cont(Xs, bins=10) :
-    """
-    Joint probability distribution for continuous variables.
-    """
-    pass    # TODO
-
 def cmi(y, xs, y0=None) :
     """
     Conditional mutual information between `y` and `xs`, conditioned on `y0`.
@@ -152,6 +124,8 @@ def dO_from_pjoint(p_joint, m=1, return_cmi=False) :
         - dims 1 to ndim-m correspond to sources; and
         - last m dims correspond to target history.
     """
+    print(p_joint)
+
     n = p_joint.ndim-1-m    # Number of sources
 
     # mi_yxn = cmi(y, xn, y0)
