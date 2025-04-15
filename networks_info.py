@@ -5,8 +5,6 @@ import numpy as np
 rng = np.random.default_rng()
 
 import networkx as nx
-# import hypergraphx as hgx
-# from hypergraphx.generation import random_hypergraph
 
 # TODO: maybe split this file into two files, for dynamics / gen and for information measures ?
 
@@ -337,6 +335,32 @@ def make_hypergraph_simplicial(hg) :
         for e in top_edges :
             for sub_size in range(2, size) :
                 hg.add_edges(combinations(e, sub_size))
+
+def random_simplicial_complex(N, ks_mean) :
+    """
+    Generate a random simplicial complex with given size and (approximate) average degrees.
+    Works for maximum order 2.
+    """
+    # Funciton-specific imports
+    from math import factorial, prod
+    from hypergraphx.generation import random_hypergraph
+
+    # Construct connection probabilities for obtaining a simplicial complex
+    # with the desired average degrees
+    ps = {}
+    ps[2] = (ks_mean[2] - 2*ks_mean[3]) / (N-1 - 2*ks_mean[3])
+    ps[3] = 2*ks_mean[3] / ((N-1)*(N-2))
+
+    # Obtian the number of edges from the connection probabilties
+    ms = {s : p*prod([N-i for i in range(0,s)])/factorial(s) for s, p in ps.items()}
+
+    # Create a random hypergraph using hgx function
+    hg = random_hypergraph(N, ms)
+    
+    # Fill in lower order hyperedges to make it simplicial (in-place)
+    make_hypergraph_simplicial(hg)
+    
+    return hg
 
 ######################
 # Information measures
