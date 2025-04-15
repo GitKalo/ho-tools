@@ -340,6 +340,10 @@ def random_simplicial_complex(N, ks_mean) :
     """
     Generate a random simplicial complex with given size and (approximate) average degrees.
     Works for maximum order 2.
+
+    Algorithm is as described in Robiglio et al. (2025), producing essentially
+    the same graph as Iacopini et al. (2019), as implemented in the `simplagion` 
+    package and `get_rsc` function.
     """
     # Funciton-specific imports
     from math import factorial, prod
