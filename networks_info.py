@@ -387,7 +387,7 @@ def make_hypergraph_simplicial(hg) :
     Modifies a hypergraph in place to include all possible lower-order hyperedges 
     for each existing hyperedge.
     """
-    for size in range(2, hg.max_size()+1) :
+    for size in range(2, hg.max_size()+1) :     # TODO: this should be range(3,max+1)?
         top_edges = hg.get_edges(size=size)
         for e in top_edges :
             for sub_size in range(2, size) :
