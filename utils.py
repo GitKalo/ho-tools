@@ -9,21 +9,20 @@ def get_p_joint(Xs) :
     For binary variables. Xs assumed to have time in axis 0.
     """
     # Calculate joint probability distribution
-    p_joint = np.zeros(tuple([2] * Xs.shape[1]))
+    p = np.zeros(tuple([2] * Xs.shape[1]))
     for s in Xs :
-        # print(s)
-        p_joint[tuple(s)] += 1
-    p_joint = p_joint / np.sum(p_joint) + 10e-30
-    # p_joint = p_joint / np.sum(p_joint)
-    
-    return p_joint
+        p[tuple(s)] += 1
+    p += 10e-30         # Avoid division by zero downstream
+    p /= np.sum(p)      # Normalize
+    return p
 
 def get_p_joint_np(Xs, bins=8) :
     """
     For binary variables. Xs assumed to have time in axis 0.
     """
     vals, _ = np.histogramdd(Xs, bins=bins)
-    p = vals / np.sum(vals) + 10e-30
+    p = vals + 10e-30   # Avoid division by zero downstream
+    p /= np.sum(p)      # Normalize
     return p
 
 def get_p_joint_cont(Xs, bins=10) :
