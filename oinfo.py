@@ -58,8 +58,8 @@ def cmi(y, xs, y0=None) :
     else :
         yxsy0 = np.concatenate([y,xs,y0], axis=1)
     
-    p_yxsy0 = get_p_joint(yxsy0)
-    # p_yxsy0 = get_p_joint_np(yxsy0)
+    # p_yxsy0 = get_p_joint(yxsy0)
+    p_yxsy0 = get_p_joint_np(yxsy0)
     mi = 0
     for i in list(range(1, n+1)) :  # i : 1 to n
         p_joint = np.sum(p_yxsy0, axis=tuple(range(i+1, n+1)))  # 2 to n
