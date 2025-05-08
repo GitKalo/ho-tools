@@ -16,9 +16,9 @@ def get_p_joint(Xs) :
     p /= np.sum(p)      # Normalize
     return p
 
-def get_p_joint_np(Xs, bins=8) :
+def get_p_joint_np(Xs, bins=2) :
     """
-    For binary variables. Xs assumed to have time in axis 0.
+    Xs assumed to have time in axis 0.
     """
     vals, _ = np.histogramdd(Xs, bins=bins)
     p = vals + 10e-30   # Avoid division by zero downstream
