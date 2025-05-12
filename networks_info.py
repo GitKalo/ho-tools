@@ -190,6 +190,14 @@ def run_sis_async(G, beta, mu=1, t_max=1000, init=0.1) :
 
     return res
 
+def mean_prev(prev, drop_frac=0.1) :
+    """
+    Calculate the mean pravelence after drop_frac of the series has passed.
+    """
+    M = len(prev)
+    prev = prev[int(M*drop_frac):]
+    return np.mean(prev)
+
 #####################################
 # Network generation and manipulation
 #####################################
