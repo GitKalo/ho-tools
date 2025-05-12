@@ -406,3 +406,36 @@ def run_pis_triplets(beta_factor, output_fname='tri_pis.txt', network_pkl_fname=
         tri_pis[i,3] = pid.get_pi(((0,1),))     # Synergistic
 
     np.savetxt(output_fname, tri_pis)
+
+##########################
+# Backbone (edge rankings)
+##########################
+
+def get_ranked_edges(edge_measures) :
+    """
+    Rankes edges by the average of the given measure.
+
+    Expects a dictionary with hyperedge sizes as keys and values being
+    a dictionary with hyperedges (ids) as keys and values being
+    lists of measure values (e.g. over different nodes as targets) or scalars.
+
+    Returns a dictionary with hyperedge sizes as keys and values being a tuple
+    of ranked edges and ranked edge measure values.
+    """
+    # TODO: Generalized to any aggregation — e.g. min, max..., not just avg
+
+    sizes = list(edge_measures.keys())
+
+    # Average measures for each hyperedge
+    edge_measures_avg = {size : {} for size in sizes}
+    for size in sizes :
+        for he, measure in edge_measures[size].items() :
+            edge_measures_avg[size][he] = sum(measure)/size
+
+    # Sort edges based on averaged measures
+    edges_ranked = {}
+    for size in sizes :
+        edges, vals = zip(*sorted(edge_measures_avg[size].items(), key=lambda k : k[1], reverse=True))
+        edges_ranked[size] = (edges, vals)  # Issue that they are long tuples rather than lists?
+    
+    return edges_ranked
