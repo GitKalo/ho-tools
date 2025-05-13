@@ -295,6 +295,43 @@ def get_tri_clique_hyperedge_hgx(hg, n_triplets=100) :
 
     return tri_all, cliques_3, hyperedges
 
+def get_quad_clique_hyperedge_hgx(hg, n_quadruplets=100) :
+    """
+    Return sorted lists of triplets, 3-cliques and hyperedges of all sizes (exclusive).
+    The hyperedges are provided as a dictionary with sizes as keys and sorted lists as values.
+    hg is a hypergraphx.Hypergraph object
+    """
+    N = hg.num_nodes()
+
+    # Get sets simpleces
+    hyperedges = {s : set(hg.get_edges(size=s)) for s in range(3, hg.max_size()+1)}
+
+    # Create set of all triplets that are 3-cliques and not 2-simplices
+    cliques_4 = set()
+    for n in range(N) :
+        for c in cliques_of_node_hgx(hg, n, minsize=4, maxsize=4) :
+            cliques_4.add(tuple(c))
+    cliques_4 = cliques_4 - hyperedges[4]
+
+    # Create intermediate set of all triplets
+    quad_all = hyperedges[4] | cliques_4     # Set union
+
+    # Generate fixed amount of random triplets
+    # CAREFUL! Will be stuck in infinite loop if # required triplets < # available triplets,
+    # which is not impossible for smaller networks and if n_triplets is large
+    nodes = range(N)
+    # Try to add n_triplets random triplets
+    while len(quad_all) - len(cliques_4) - len(hyperedges[4]) < n_quadruplets :    # While "space" for triplets
+        quad = tuple(rng.choice(nodes, 4, replace=False).tolist())
+        if quad not in quad_all :
+            quad_all.add(quad)
+
+    quad_all = sorted(quad_all)
+    cliques_4 = sorted(cliques_4)
+    hyperedges = {s : sorted(simp) for s, simp in hyperedges.items()}
+
+    return quad_all, cliques_4, hyperedges
+
 def simp_dict_from_list(simp_list, N) :
     simp_dict = {n : [] for n in range(N)}
     for simp in simp_list :
@@ -348,7 +385,7 @@ def make_hypergraph_simplicial(hg) :
 def random_simplicial_complex(N, ks_mean) :
     """
     Generate a random simplicial complex with given size and (approximate) average degrees.
-    Works for maximum order 2.
+    Works for maximum size 3 (triangles).
 
     Algorithm is as described in Robiglio et al. (2025), producing essentially
     the same graph as Iacopini et al. (2019), as implemented in the `simplagion` 
