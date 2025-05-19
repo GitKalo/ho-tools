@@ -297,7 +297,7 @@ def get_tri_clique_hyperedge_hgx(hg, n_triplets=100) :
 
 def get_quad_clique_hyperedge_hgx(hg, n_quadruplets=100) :
     """
-    Return sorted lists of triplets, 3-cliques and hyperedges of all sizes (exclusive).
+    Return sorted lists of quadruplets, 4-cliques and hyperedges of all sizes (exclusive).
     The hyperedges are provided as a dictionary with sizes as keys and sorted lists as values.
     hg is a hypergraphx.Hypergraph object
     """
