@@ -380,7 +380,10 @@ def make_hypergraph_simplicial(hg) :
         top_edges = hg.get_edges(size=size)
         for e in top_edges :
             for sub_size in range(2, size) :
-                hg.add_edges(combinations(e, sub_size))
+                # hg.add_edges(combinations(e, sub_size))
+                for edge in combinations(e, sub_size) :
+                    if not hg.check_edge(edge) :
+                        hg.add_edge(edge)
 
 def random_simplicial_complex(N, ks_mean) :
     """
