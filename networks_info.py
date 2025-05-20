@@ -332,6 +332,43 @@ def get_quad_clique_hyperedge_hgx(hg, n_quadruplets=100) :
 
     return quad_all, cliques_4, hyperedges
 
+def get_clique_hyperedge_hgx(hg, group_size, n_groups=100) :
+    """
+    Return sorted lists of quadruplets, 4-cliques and hyperedges of all sizes (exclusive).
+    The hyperedges are provided as a dictionary with sizes as keys and sorted lists as values.
+    hg is a hypergraphx.Hypergraph object
+    """
+    N = hg.num_nodes()
+
+    # Get sets simpleces
+    hyperedges = {s : set(hg.get_edges(size=s)) for s in range(3, hg.max_size()+1)}
+
+    # Create set of all triplets that are 3-cliques and not 2-simplices
+    cliques = set()
+    for n in range(N) :
+        for c in cliques_of_node_hgx(hg, n, minsize=group_size, maxsize=group_size) :
+            cliques.add(tuple(c))
+    cliques = cliques - hyperedges[group_size]
+
+    # Create intermediate set of all triplets
+    groups_all = hyperedges[group_size] | cliques     # Set union
+
+    # Generate fixed amount of random triplets
+    # CAREFUL! Will be stuck in infinite loop if # required triplets < # available triplets,
+    # which is not impossible for smaller networks and if n_triplets is large
+    nodes = range(N)
+    # Try to add n_triplets random triplets
+    while len(groups_all) - len(cliques) - len(hyperedges[group_size]) < n_groups :    # While "space" for triplets
+        group = tuple(rng.choice(nodes, group_size, replace=False).tolist())
+        if group not in groups_all :
+            groups_all.add(group)
+
+    groups_all = sorted(groups_all)
+    cliques = sorted(cliques)
+    hyperedges = {s : sorted(simp) for s, simp in hyperedges.items()}
+
+    return groups_all, cliques, hyperedges
+
 def simp_dict_from_list(simp_list, N) :
     simp_dict = {n : [] for n in range(N)}
     for simp in simp_list :
