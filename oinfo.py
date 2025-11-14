@@ -68,7 +68,7 @@ def cmi(y, xs, y0=None) :
             (p_joint * p_cond_terms) / 
             (np.stack([np.sum(p_joint, axis=i)]*2, axis=i) * np.stack([np.sum(p_joint, axis=0)]*2, axis=0))
         ))
-
+    # TODO: edit to work with variable number of bins (like below function)
     return mi
 
 def cmi_from_pjoint(p_yxsy0, n) :
@@ -81,7 +81,7 @@ def cmi_from_pjoint(p_yxsy0, n) :
     """
     nbins = p_yxsy0.shape[0]     # To make more general (applicable to any hist distribution)
     mi = 0
-    for i in list(range(1, n+1)) :  # i : 1 to n
+    for i in range(1, n+1) :  # i : 1 to n
         p_joint = np.sum(p_yxsy0, axis=tuple(range(i+1, n+1)))  # 2 to n
         p_cond_terms = np.stack([np.stack([np.sum(p_joint, axis=(0,i))]*nbins, axis=0)]*nbins, axis=i)
         mi += np.sum(p_joint * np.log2(
@@ -98,6 +98,7 @@ def dO(target, source, m=1, return_cmi=False, sample_period=1) :
     Assume same index of axis 0 corresponds to same t in target and source.
     `m` is the order of time-dependence (number of steps back for conditioning).
     """
+    #TODO: currently fails silently if empty arrays are passed
     n = source.shape[1]     # Determine number of source vars
     if m > 0 :
         y = target[m:]      # Target at t+1
@@ -135,7 +136,7 @@ def dO_from_pjoint(p_joint, m=1, return_cmi=False) :
     # assert np.all(np.array(mi_yxj) >= 0), f"Incorrect source indep. MI {mi_yxj} < 0"
     # The assertions above are useful, but they are too restrictive due to small rounding errors
     # TODO: either fix rounding error possibility or find a more flexible assertion check
-
+    
     dOn = (1-n)*mi_yxn + np.sum(mi_yxj)
 
     if return_cmi :
