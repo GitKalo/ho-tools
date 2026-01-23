@@ -215,3 +215,24 @@ def dO_cond_knncmi(target, source) :
 
     dO3 = (1-n)*mi_yxn + np.sum(mi_yxj)
     return dO3
+
+def get_stat_dist_for_index(i, measure, mask_g1, mask_g2, n_bins=20) :
+    """
+    Get the statistical distance ("delta") between the distributions of values given by
+    the `measure` parameter at index `i` for the two groups defined by
+    array masks `mask_g1` and `mask_g2`.
+    """
+    # Distance needs to be over common alphabet (specific to each i)
+    measure = np.nan_to_num(measure)  # Convert NaNs to 0s for computing distance
+    bin_min = min(np.min(measure[i][mask_g1]), np.min(measure[i][mask_g2]))
+    bin_max = max(np.max(measure[i][mask_g1]), np.max(measure[i][mask_g2]))
+    common_bin_range = (bin_min, bin_max)
+
+    # Get probability distributions
+    dist_g1, _ = np.histogram(measure[i][mask_g1], bins=n_bins, range=common_bin_range)
+    dist_g2, _  = np.histogram(measure[i][mask_g2],  bins=n_bins, range=common_bin_range)
+    dist_g1 = dist_g1.astype(float) / np.sum(dist_g1)
+    dist_g2 = dist_g2.astype(float) / np.sum(dist_g2)
+
+    # Calculate statistical distance
+    return np.sum(np.abs(dist_g2 - dist_g1))/2
