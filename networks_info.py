@@ -222,6 +222,93 @@ def get_rsc(N, p, p_tri) :
     # tri_dict = {n : [set(tri) for tri in tri_list if n in tri] for n in G.nodes()}
     return G, tri_dict
 
+def make_hypergraph_simplicial(hg) :
+    """
+    Modifies a hypergraph in place to include all possible lower-order hyperedges 
+    for each existing hyperedge.
+    """
+    for size in range(2, hg.max_size()+1) :     # TODO: this should be range(3,max+1)?
+        top_edges = hg.get_edges(size=size)
+        for e in top_edges :
+            for sub_size in range(2, size) :
+                # hg.add_edges(combinations(e, sub_size))
+                for edge in combinations(e, sub_size) :
+                    if not hg.check_edge(edge) :
+                        hg.add_edge(edge)
+
+def random_simplicial_complex(N, ks_mean) :
+    """
+    Generate a random simplicial complex with given size and (approximate) average degrees.
+    Works for maximum size 3 (triangles).
+
+    Algorithm is as described in Robiglio et al. (2025), producing essentially
+    the same graph as Iacopini et al. (2019), as implemented in the `simplagion` 
+    package and `get_rsc` function.
+    """
+    # Funciton-specific imports
+    from math import factorial, prod
+    from hypergraphx.generation import random_hypergraph
+
+    # Construct connection probabilities for obtaining a simplicial complex
+    # with the desired average degrees
+    ps = {}
+    ps[2] = (ks_mean[2] - 2*ks_mean[3]) / (N-1 - 2*ks_mean[3])
+    ps[3] = 2*ks_mean[3] / ((N-1)*(N-2))
+
+    # Obtian the number of edges from the connection probabilties
+    ms = {s : p*prod([N-i for i in range(0,s)])/factorial(s) for s, p in ps.items()}
+
+    # Create a random hypergraph using hgx function
+    hg = random_hypergraph(N, ms)
+    
+    # Fill in lower order hyperedges to make it simplicial (in-place)
+    make_hypergraph_simplicial(hg)
+    
+    return hg
+
+######################
+# Sampling node groups
+######################
+
+def is_clique_hgx(hg, nodes) :
+    """
+    Check if `nodes` forms a pairwise clique in the hgx.Hypergraph `hg`.
+    """
+    for u, v in combinations(nodes, 2) :
+        if not hg.check_edge((u,v)) :
+            return False
+    return True
+
+def cliques_of_node_nx(G, n, minsize=None, maxsize=None) :
+    """
+    Get all cliques of given sizes that node n participates in.
+
+    G is a networkx.Graph object.
+    """
+    cliques = [c for c in list(nx.enumerate_all_cliques(G)) if n in c]
+    if minsize is None and maxsize is None :
+        return cliques
+    elif maxsize is None :
+        return [c for c in cliques if (len(c) >= minsize)]
+    elif minsize is None :
+        return [c for c in cliques if (len(c) <= maxsize)]
+    else :
+        return [c for c in cliques if (len(c) <= maxsize) and (len(c) >= minsize)]
+
+def cliques_of_node_hgx(hg, n, minsize=3, maxsize=3) :
+    """
+    Get all cliques of given sizes that node n participates in.
+
+    G is a hypergraphx.Hypergraph object.
+    """
+    cliques = []
+    for size in range(minsize, maxsize+1) :
+        for nbrs in combinations(hg.get_neighbors(n, size=2), size-1) :
+            if is_clique_hgx(hg, nbrs) :
+                cliques.append(tuple(sorted([n, *nbrs])))
+
+    return sorted(cliques)
+
 def get_tri_clique_simplex_nx(G, simp_dict, n_triplets=10**3) :
     """
     Return sorted lists of triplets, 3-cliques and 2-simplices (exclusive).
@@ -391,92 +478,91 @@ def get_nplets_noclique_hgx(hg, group_size, cliques=[], n_groups=100) :
 
     return groups_all, hyperedges
 
+def get_random_groups_hgx(hg, group_size=3, n_groups=100) :
+    """
+    Sample a total of `n_groups` groups of random nodes of size `group_size` 
+    uniformly at random from the hgx.Hypergraph `hg`.
+    """
+    # Get list of nodes
+    nodes = hg.get_nodes()
+
+    # Sample until we get `n_groups` viable groups
+    random_groups = set()
+    while len(random_groups) < n_groups :
+        group = tuple(rng.choice(nodes, group_size, replace=False).tolist())    # list > tuple to avoid np types
+        if \
+        (group not in random_groups) and \
+        (not hg.check_edge(group)) and \
+        (not is_clique_hgx(hg, group))  :
+            random_groups.add(tuple(sorted(group)))
+    
+    return sorted(random_groups)
+
+def get_nested_for_group_hgx(hg, target_group, nested_group_size) :
+    """
+    Sample a group of `nested_group_size` nodes that are not HO interactions but
+    are  "nested" w.r.t. to the `target_group` in the hgx.Hypergraph `hg`.
+    
+    Nestedness is defined as a subset of the target group (if nested size < target size);
+    or as a superset of the target group (if nested size > target size);
+    or as the target group itself (if sizes are equal).
+    """
+    target_size = len(target_group)
+
+    if nested_group_size == target_size :
+        ### Return target group as the nested group of the same size
+        
+        nested_group = target_group
+    elif nested_group_size < target_size :
+        ### Return a random subset of the target group (that is not a hyperedge itself)
+        
+        if nested_group_size < 3 :
+            raise ValueError("Nested group size must be at least 3.")
+        
+        nested_group = tuple(rng.choice(target_group, nested_group_size, replace=False).tolist())
+    elif nested_group_size > target_size :
+        ### Return the union of the target group and a random subset of its neighbours
+        
+        size_diff = nested_group_size - target_size
+        
+        # Initialize nested group and neighbours (not only pairwise)
+        nested_group = list(target_group)
+        candidate_nbrs = {nbr for node in target_group for nbr in hg.get_neighbors(node)}
+        for _ in range(size_diff) :     # Add nodes up to target size
+            # Filter out current target group from candidate additions to avoid duplicates
+            candidate_nbrs = candidate_nbrs - set(nested_group)
+            
+            c = 0
+            while c < 100 :    # Loop until we get a non-hyperedge group
+                # Get random neighbour (should always have, assuming connected network)
+                nbr = int(rng.choice(list(candidate_nbrs)))
+                
+                # If new set is not an existing hyperedge, continue to next addition
+                if not hg.check_edge(nested_group + [nbr]) :
+                    # Add neighbour to nested group and its neighbours to candidates
+                    nested_group.append(nbr)
+                    candidate_nbrs.update(hg.get_neighbors(nbr))
+                    break
+                else : c += 1   # If it is a hyperedge, try again with same candidates
+            else :
+                raise ValueError(f"Could not find a nested group that is not a hyperedge after 100 trials. Candidates are: {candidate_nbrs}")
+        
+    return tuple(sorted(nested_group))   # Sort and return nested group
+
+######################
+# Information measures
+######################
+
 def simp_dict_from_list(simp_list, N) :
+    """
+    Helper method taking a list of simpleces and returning a dictionary 
+    with node labels as keys and incident hyperedges as values.
+    """
     simp_dict = {n : [] for n in range(N)}
     for simp in simp_list :
         for n in simp :
             simp_dict[n].append(set(simp))
     return simp_dict
-
-def cliques_of_node_nx(G, n, minsize=None, maxsize=None) :
-    """
-    Get all cliques of given sizes that node n participates in.
-
-    G is a networkx.Graph object.
-    """
-    cliques = [c for c in list(nx.enumerate_all_cliques(G)) if n in c]
-    if minsize is None and maxsize is None :
-        return cliques
-    elif maxsize is None :
-        return [c for c in cliques if (len(c) >= minsize)]
-    elif minsize is None :
-        return [c for c in cliques if (len(c) <= maxsize)]
-    else :
-        return [c for c in cliques if (len(c) <= maxsize) and (len(c) >= minsize)]
-
-def cliques_of_node_hgx(hg, n, minsize=3, maxsize=3) :
-    """
-    Get all cliques of given sizes that node n participates in.
-
-    G is a hypergraphx.Hypergraph object.
-    """
-    cliques = []
-    for size in range(minsize, maxsize+1) :
-        for nbrs in combinations(hg.get_neighbors(n, size=2), size-1) :
-            for i, j in combinations(nbrs, 2) :
-                if not hg.check_edge((i, j)) :
-                    break
-            else :  # If no break, then clique exists
-                cliques.append(tuple(sorted([n, *nbrs])))
-    return sorted(cliques)
-
-def make_hypergraph_simplicial(hg) :
-    """
-    Modifies a hypergraph in place to include all possible lower-order hyperedges 
-    for each existing hyperedge.
-    """
-    for size in range(2, hg.max_size()+1) :     # TODO: this should be range(3,max+1)?
-        top_edges = hg.get_edges(size=size)
-        for e in top_edges :
-            for sub_size in range(2, size) :
-                # hg.add_edges(combinations(e, sub_size))
-                for edge in combinations(e, sub_size) :
-                    if not hg.check_edge(edge) :
-                        hg.add_edge(edge)
-
-def random_simplicial_complex(N, ks_mean) :
-    """
-    Generate a random simplicial complex with given size and (approximate) average degrees.
-    Works for maximum size 3 (triangles).
-
-    Algorithm is as described in Robiglio et al. (2025), producing essentially
-    the same graph as Iacopini et al. (2019), as implemented in the `simplagion` 
-    package and `get_rsc` function.
-    """
-    # Funciton-specific imports
-    from math import factorial, prod
-    from hypergraphx.generation import random_hypergraph
-
-    # Construct connection probabilities for obtaining a simplicial complex
-    # with the desired average degrees
-    ps = {}
-    ps[2] = (ks_mean[2] - 2*ks_mean[3]) / (N-1 - 2*ks_mean[3])
-    ps[3] = 2*ks_mean[3] / ((N-1)*(N-2))
-
-    # Obtian the number of edges from the connection probabilties
-    ms = {s : p*prod([N-i for i in range(0,s)])/factorial(s) for s, p in ps.items()}
-
-    # Create a random hypergraph using hgx function
-    hg = random_hypergraph(N, ms)
-    
-    # Fill in lower order hyperedges to make it simplicial (in-place)
-    make_hypergraph_simplicial(hg)
-    
-    return hg
-
-######################
-# Information measures
-######################
 
 def run_pis_triplets(beta_factor, output_fname='tri_pis.txt', network_pkl_fname='G_tri_1.pkl') :
     """
