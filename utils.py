@@ -79,6 +79,26 @@ def get_p_joint_from_inftrack(ts, inf_track, nodes, lag=0) :
     p = p / np.sum(p)
     return p
 
+def get_p_joint_all(inf, nodes) :
+    """
+    Get joint probability distribution of all nodes and their one-step history.
+
+    Output indices 0 to n-1 correspond to "current" state, n to 2n-1 to "previous" state.
+
+    inf   (np.ndarray) : Array of node state with time along axis 0 and nodes along axis 1.
+    nodes (list)       : Node indeces. Should be a list to allow propoer indexing 
+                         of inf array.
+    """
+    # Silent conversion to list (should work with most iterable types)
+    if type(nodes) is not list :
+        nodes = list(nodes)
+    
+    xs = inf[1:,nodes]
+    xs_history = inf[:-1,nodes]
+    xs_all = np.concatenate((xs, xs_history), axis=1)
+    p_joint = get_p_joint_np(xs_all, bins=2)
+    return p_joint
+
 ###########################
 # Data processing functions
 ###########################
