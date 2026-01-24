@@ -451,6 +451,38 @@ def get_clique_hyperedge_hgx(hg, group_size, n_groups=100) :
 
     return groups_all, cliques, hyperedges
 
+def get_cliques_hgx(hg, group_size, n_groups=100) :
+    """
+    Sample `n_groups` pairwise cliques of size `group_size` that are 
+    not hyperedges of size 3 or more from the hypergraphx.Hypergraph `hg`.
+
+    If `n_groups` is None, return all cliques of the given size.
+    If there are fewer cliques in the network than requested, return all available cliques.
+    """
+    N = hg.num_nodes()
+
+    # Get all cliques of given size that are not hyperedges
+    cliques_all = set()     # Use set to avoid duplicates
+    for n in range(N) :
+        for c in cliques_of_node_hgx(hg, n, minsize=group_size, maxsize=group_size) :
+            if group_size <= 2 or not hg.check_edge(c) :    # Ensure not hyperedges, but allow up to size 2 (single nodes and pairwise edges)
+                cliques_all.add(tuple(sorted(c)))
+    
+    if n_groups is None :
+        # Return all cliques
+        cliques = sorted(cliques_all)
+    elif len(cliques_all) < n_groups :
+        # Not enough cliques to sample from
+        print(f"Warning: requested {n_groups} cliques but only {len(cliques_all)} exist. Returning all available cliques.")
+        cliques = sorted(cliques_all)
+    else :
+        # Sample from all cliques without replacement
+        cliques_all = list(cliques_all)   # Convert to list for sampling
+        c_ids = rng.choice(len(cliques_all), n_groups, replace=False)
+        cliques = sorted([cliques_all[i] for i in c_ids])
+    
+    return cliques
+
 def get_nplets_noclique_hgx(hg, group_size, cliques=[], n_groups=100) :
     """
     Without calculating cliques (used e.g. when we have added cliques manually for large order)
@@ -503,9 +535,10 @@ def get_nested_for_group_hgx(hg, target_group, nested_group_size) :
     Sample a group of `nested_group_size` nodes that are not HO interactions but
     are  "nested" w.r.t. to the `target_group` in the hgx.Hypergraph `hg`.
     
-    Nestedness is defined as a subset of the target group (if nested size < target size);
-    or as a superset of the target group (if nested size > target size);
-    or as the target group itself (if sizes are equal).
+    A nested group is defined as:
+        - a subset of the target group (if nested size < target size);
+        - the target group itself (if sizes are equal); or
+        - a superset of the target group (if nested size > target size).
     """
     target_size = len(target_group)
 
