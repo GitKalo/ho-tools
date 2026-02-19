@@ -93,6 +93,37 @@ def cmi_from_pjoint(p_yxsy0, n) :
 
     return mi
 
+def cmi_from_pjoint_ent(p_yxsy0, n) :
+    """
+    Conditional mutual information between a single target and a set of source variables.
+    Assumes that:
+        - dim 0 of dist corresponds to target (y);
+        - dims 1 to ndim-m correspond to sources (xs); and
+        - last m dims correspond to target history (y0).
+
+    Based on testing, this entropy-based version is slightly faster than 
+    the direct probability-based version above.
+    """
+    nbins = p_yxsy0.shape[0]     # To make more general (applicable to any hist distribution)
+    
+    p_y0 = np.sum(p_yxsy0, axis=tuple(range(0, n+1)))
+    p_yy0 = np.sum(p_yxsy0, axis=tuple(range(1, n+1)))
+    p_cond_y0 = p_yy0 / np.sum(p_yy0, axis=0)[None,:] # Add "empty" axis, similar to keepdims but controlled
+    # Can also do this via the following:
+    # print(p_yy0 / np.stack([np.sum(p_yy0, axis=0)]*nbins, axis=0))
+    # print(p_yy0 / np.sum(p_yy0, axis=0, keepdims=True))  # Keepdims is fine if you operate along same axis
+
+    h_cond_y0 = -np.sum(np.stack([p_y0]*nbins, axis=0) * p_cond_y0 * np.log2(p_cond_y0))
+
+    p_xsy0 = np.sum(p_yxsy0, axis=0)
+    p_cond_xsy0 = p_yxsy0 / np.sum(p_yxsy0, axis=0)[None,...]
+    
+    h_cond_xsy0 = -np.sum(p_xsy0[None,...] * p_cond_xsy0 * np.log2(p_cond_xsy0))
+    
+    mi = float(h_cond_y0 - h_cond_xsy0)
+    
+    return mi
+
 def dO(target, source, m=1, return_cmi=False, sample_period=1) :
     """
     Assume same index of axis 0 corresponds to same t in target and source.
