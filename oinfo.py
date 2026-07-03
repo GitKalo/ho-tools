@@ -247,6 +247,54 @@ def dO_cond_knncmi(target, source) :
     dO3 = (1-n)*mi_yxn + np.sum(mi_yxj)
     return dO3
 
+def redundancy(p_joint, return_pw_mis=False) :
+    """
+    Bottom-level redundancy atom of PID assuming I_MMI redundancy function.
+
+    Expect target in axis 0, sources in axes 1 to len(sources), and target history in last axis.
+
+    Works for single-target, single-step history.
+
+    TODO: Make for more than one-step target history (arbitrary m), also for `synergy` function.
+    """
+    ndim = p_joint.ndim
+    s_ids = list(range(1, ndim-1))
+    # Marginal MIs
+    mis_pw = []
+    for s in s_ids :
+        # Marginalize over other source histories
+        p = np.sum(p_joint, axis=tuple([s_id for s_id in s_ids if s_id != s]))
+        mis_pw.append(cmi_from_pjoint_ent(p, 1))
+    
+    if return_pw_mis :
+        return min(mis_pw), mis_pw
+    else :
+        return min(mis_pw)
+
+def synergy(p_joint, mi_all=None, return_mi=False) :
+    """
+    Top-level synergy atom of PID assuming I_MMI redundancy function.
+
+    Expect target in axis 0, sources in axes 1 to len(sources), and target history in last axis.
+
+    Works for single-target, single-step history.
+    """
+    ndim = p_joint.ndim
+    s_ids = list(range(1, ndim-1))
+    if mi_all is None :
+        mi_all = cmi_from_pjoint_ent(p_joint, len(s_ids))
+    # One-out MIs
+    mis_oo = []
+    for s in s_ids :
+        # Marginalize over source history
+        p = np.sum(p_joint, axis=s)
+        mis_oo.append(cmi_from_pjoint_ent(p, len(s_ids)-1))
+    
+    if return_mi :
+        return mi_all - max(mis_oo), mi_all
+    else :
+        return mi_all - max(mis_oo)
+
 def get_stat_dist_for_index(i, measure, mask_g1, mask_g2, n_bins=20) :
     """
     Get the statistical distance ("delta") between the distributions of values given by
